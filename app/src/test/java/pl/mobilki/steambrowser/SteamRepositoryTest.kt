@@ -1,5 +1,9 @@
 package pl.mobilki.steambrowser
 
+import pl.mobilki.steambrowser.data.model.GameSummary
+import pl.mobilki.steambrowser.data.remote.SteamApiService
+import pl.mobilki.steambrowser.data.repository.SteamRepository
+import pl.mobilki.steambrowser.data.repository.toPolishMessage
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -59,14 +63,41 @@ class SteamRepositoryTest {
         )
     }
 
+    @Test
+    fun getAllGamesReturnsListOnSuccess() = runBlocking {
+        val appListJson = """
+            {
+                "applist": {
+                    "apps": [
+                        {"appid": 1, "name": "Game 1"},
+                        {"appid": 2, "name": "Game 2"}
+                    ]
+                }
+            }
+        """.trimIndent()
+        val repository = SteamRepository(FakeSteamApiService(appListJson = appListJson))
+
+        val result = repository.getAllGames()
+
+        assertTrue(result.isSuccess)
+        val games = result.getOrThrow()
+        assertEquals(2, games.size)
+        assertEquals("Game 1", games[0].name)
+        assertEquals(1, games[0].appId)
+    }
+
     private inner class FakeSteamApiService(
         private val mostPlayedJson: String = """{"response":{"ranks":[]}}""",
-        private val currentPlayersJson: String = """{"response":{"player_count":0}}"""
+        private val currentPlayersJson: String = """{"response":{"player_count":0}}""",
+        private val appListJson: String = """{"applist":{"apps":[]}}"""
     ) : SteamApiService {
         override suspend fun getMostPlayedGames(apiKey: String): JsonObject =
             json.parseToJsonElement(mostPlayedJson).jsonObject
 
         override suspend fun getCurrentPlayers(appId: Int): JsonObject =
             json.parseToJsonElement(currentPlayersJson).jsonObject
+
+        override suspend fun getAppList(): JsonObject =
+            json.parseToJsonElement(appListJson).jsonObject
     }
 }
