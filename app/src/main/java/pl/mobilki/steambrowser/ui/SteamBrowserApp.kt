@@ -102,6 +102,7 @@ import pl.mobilki.steambrowser.GameMetadata
 import pl.mobilki.steambrowser.GameSummary
 import pl.mobilki.steambrowser.GamesUiState
 import pl.mobilki.steambrowser.GamesViewModel
+import pl.mobilki.steambrowser.R
 import pl.mobilki.steambrowser.ReviewViewModel
 import pl.mobilki.steambrowser.SortOrder
 import java.text.NumberFormat
@@ -807,49 +808,49 @@ private fun GameMetadataSection(metadata: GameMetadata) {
 
 @Composable
 private fun PegiBadge(rating: Int) {
-    val borderColor = when {
-        rating >= 18 -> Color(0xFFFF6B6B)
-        rating >= 16 -> Color(0xFFFF8C42)
-        rating >= 12 -> Color(0xFFFFC107)
-        rating >= 7  -> Color(0xFF66BB6A)
-        else         -> Color(0xFF7A9AB5)
+    val drawableRes = when {
+        rating >= 18 -> R.drawable.pegi18
+        rating >= 16 -> null
+        rating >= 12 -> R.drawable.pegi12
+        rating >= 7  -> R.drawable.pegi7
+        else         -> R.drawable.pegi3
     }
-    Box(
-        modifier = Modifier
-            .size(width = 38.dp, height = 46.dp)
-            .background(Color(0xFF0E1825), RoundedCornerShape(4.dp))
-            .then(
-                Modifier.background(
-                    color = Color.Transparent,
-                    shape = RoundedCornerShape(4.dp)
-                )
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        androidx.compose.foundation.Canvas(modifier = Modifier.matchParentSize()) {
-            drawRoundRect(
-                color = borderColor,
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f)
-            )
-        }
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(2.dp)
+    if (drawableRes != null) {
+        androidx.compose.foundation.Image(
+            painter = androidx.compose.ui.res.painterResource(id = drawableRes),
+            contentDescription = "PEGI $rating",
+            modifier = Modifier.height(40.dp)
+        )
+    } else {
+        val borderColor = Color(0xFFFF8C42)
+        Box(
+            modifier = Modifier.size(width = 30.dp, height = 40.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "PEGI",
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = 6.sp, letterSpacing = 0.8.sp),
-                color = borderColor,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "$rating",
-                style = MaterialTheme.typography.titleLarge.copy(lineHeight = 20.sp),
-                color = Color.White,
-                fontWeight = FontWeight.ExtraBold
-            )
+            androidx.compose.foundation.Canvas(modifier = Modifier.matchParentSize()) {
+                drawRoundRect(
+                    color = borderColor,
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(6f, 6f),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
+                )
+            }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(2.dp)
+            ) {
+                Text(
+                    text = "PEGI",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 5.sp),
+                    color = borderColor,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "$rating",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color.White,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
         }
     }
 }
