@@ -200,7 +200,12 @@ fun SteamBrowserApp(viewModel: GamesViewModel, dealsViewModel: DealsViewModel) {
                                     onGameClick = viewModel::selectGame,
                                     onToggleFavorite = viewModel::toggleFavorite
                                 )
-                                AppTab.DEALS -> DealsScreen(viewModel = dealsViewModel)
+                                AppTab.DEALS -> DealsScreen(
+                                    viewModel = dealsViewModel,
+                                    onGameClick = { appId, name ->
+                                        viewModel.selectGameFromDeals(appId, name)
+                                    }
+                                )
                             }
                         }
                     }

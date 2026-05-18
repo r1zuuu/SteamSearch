@@ -1,6 +1,7 @@
 package pl.mobilki.steambrowser.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,7 +52,7 @@ import pl.mobilki.steambrowser.GamePrice
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DealsScreen(viewModel: DealsViewModel) {
+fun DealsScreen(viewModel: DealsViewModel, onGameClick: (Int, String) -> Unit = { _, _ -> }) {
     LaunchedEffect(Unit) { viewModel.loadIfNeeded() }
     val uiState by viewModel.uiState.collectAsState()
 
@@ -91,7 +92,7 @@ fun DealsScreen(viewModel: DealsViewModel) {
                             modifier = Modifier.fillMaxSize()
                         ) {
                             items(state.deals, key = { it.appId }) { deal ->
-                                DealCard(deal = deal)
+                                DealCard(deal = deal, onClick = { onGameClick(deal.appId, deal.name) })
                             }
                         }
                     }
@@ -102,9 +103,12 @@ fun DealsScreen(viewModel: DealsViewModel) {
 }
 
 @Composable
-private fun DealCard(deal: DealItem) {
+private fun DealCard(deal: DealItem, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp

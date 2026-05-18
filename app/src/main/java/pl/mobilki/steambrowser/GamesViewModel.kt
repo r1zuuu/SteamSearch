@@ -70,6 +70,13 @@ class GamesViewModel(
         }
     }
 
+    fun selectGameFromDeals(appId: Int, name: String) {
+        if (allGames.none { it.appId == appId }) {
+            allGames = allGames + GameSummary(appId, name, null, appId in favorites)
+        }
+        selectGame(appId)
+    }
+
     fun closeDetails() {
         selectedAppId = null
         publishContent()

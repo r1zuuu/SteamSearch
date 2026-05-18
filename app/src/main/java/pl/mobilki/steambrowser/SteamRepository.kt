@@ -67,13 +67,15 @@ class SteamRepository(
 
     suspend fun getFeaturedDeals(): Result<List<DealItem>> = runCatching {
         val response = api.getFeaturedCategories()
-        val specials = (response["specials"] as? JsonObject)
-            ?: throw IllegalStateException("Brak sekcji promocji w odpowiedzi Steam.")
-        val items = (specials["items"] as? JsonArray)
-            ?.mapNotNull { it.asJsonObjectOrNull() }
-            ?: throw IllegalStateException("Brak listy promocji.")
 
-        val deals = items.mapNotNull { item ->
+        val sectionKeys = listOf("specials", "top_sellers", "new_releases", "coming_soon")
+        val rawItems = sectionKeys.flatMap { key ->
+            (response[key] as? JsonObject)
+                ?.let { (it["items"] as? JsonArray)?.mapNotNull { e -> e.asJsonObjectOrNull() } }
+                .orEmpty()
+        }
+
+        val deals = rawItems.mapNotNull { item ->
             val appId = (item["id"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null
             val name = (item["name"] as? JsonPrimitive)?.contentOrNull
                 ?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
@@ -91,7 +93,7 @@ class SteamRepository(
                 finalFormatted = formatPricePln(finalCents)
             )
             DealItem(appId = appId, name = name, price = price)
-        }
+        }.distinctBy { it.appId }
 
         if (deals.isEmpty()) throw IllegalStateException("Brak aktualnych promocji.")
 
