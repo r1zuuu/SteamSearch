@@ -65,6 +65,23 @@ class SteamRepository(
         }
     }
 
+    suspend fun getGamePrice(appId: Int): Result<GamePrice?> = runCatching {
+        val response = api.getAppDetails(appId)
+        val gameData = (response[appId.toString()] as? JsonObject) ?: return@runCatching null
+        val success = (gameData["success"] as? JsonPrimitive)?.content == "true"
+        if (!success) return@runCatching null
+        val data = (gameData["data"] as? JsonObject) ?: return@runCatching null
+        val priceOverview = (data["price_overview"] as? JsonObject) ?: return@runCatching null
+        GamePrice(
+            currency = (priceOverview["currency"] as? JsonPrimitive)?.contentOrNull ?: "PLN",
+            initialCents = (priceOverview["initial"] as? JsonPrimitive)?.intOrNull ?: 0,
+            finalCents = (priceOverview["final"] as? JsonPrimitive)?.intOrNull ?: 0,
+            discountPercent = (priceOverview["discount_percent"] as? JsonPrimitive)?.intOrNull ?: 0,
+            initialFormatted = (priceOverview["initial_formatted"] as? JsonPrimitive)?.contentOrNull ?: "",
+            finalFormatted = (priceOverview["final_formatted"] as? JsonPrimitive)?.contentOrNull ?: ""
+        )
+    }
+
     suspend fun getCurrentPlayers(appId: Int): Result<Int> = runCatching {
         val response = api.getCurrentPlayers(appId)
         response.findInt("player_count")

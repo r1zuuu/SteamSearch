@@ -44,11 +44,16 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.LocalOffer
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -60,6 +65,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -77,6 +84,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -89,27 +97,59 @@ import pl.mobilki.steambrowser.GameDetails
 import pl.mobilki.steambrowser.GameSummary
 import pl.mobilki.steambrowser.GamesUiState
 import pl.mobilki.steambrowser.GamesViewModel
+import pl.mobilki.steambrowser.DealsViewModel
 import pl.mobilki.steambrowser.SortOrder
 import java.text.NumberFormat
 import java.util.Locale
 
+enum class AppTab(
+    val label: String,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector
+) {
+    HOME("Home", Icons.Filled.Home, Icons.Outlined.Home),
+    SEARCH("Wyszukaj", Icons.Filled.Search, Icons.Outlined.Search),
+    DEALS("Promocje", Icons.Filled.LocalOffer, Icons.Outlined.LocalOffer)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SteamBrowserApp(viewModel: GamesViewModel) {
+fun SteamBrowserApp(viewModel: GamesViewModel, dealsViewModel: DealsViewModel) {
     val uiState by viewModel.uiState.collectAsState()
+    var currentTab by remember { mutableStateOf(AppTab.HOME) }
 
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { padding ->
+    val selectedGame = (uiState as? GamesUiState.Content)?.selectedGame
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = {
+            AnimatedVisibility(
+                visible = selectedGame == null,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                BottomNavBar(
+                    currentTab = currentTab,
+                    onTabChange = { tab ->
+                        if (tab != AppTab.SEARCH && currentTab == AppTab.SEARCH) {
+                            viewModel.setSearchQuery("")
+                        }
+                        currentTab = tab
+                    }
+                )
+            }
+        }
+    ) { scaffoldPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(scaffoldPadding)
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(Color(0xFF101722), Color(0xFF132033), Color(0xFF101722))
                     )
                 )
                 .statusBarsPadding()
-                .navigationBarsPadding()
         ) {
             when (val state = uiState) {
                 GamesUiState.Loading -> ShimmerLoadingScreen()
@@ -135,25 +175,56 @@ fun SteamBrowserApp(viewModel: GamesViewModel) {
                                 onToggleFavorite = { viewModel.toggleFavorite(selectedGame.appId) }
                             )
                         } else {
-                            GamesListScreen(
-                                games = state.games,
-                                favoritesOnly = state.favoritesOnly,
-                                searchQuery = state.searchQuery,
-                                sortOrder = state.sortOrder,
-                                isRefreshing = state.isRefreshing,
-                                isSearching = state.isSearching,
-                                isSearchMode = state.isSearchMode,
-                                onFavoritesOnlyChange = viewModel::setFavoritesOnly,
-                                onGameClick = viewModel::selectGame,
-                                onToggleFavorite = viewModel::toggleFavorite,
-                                onRefresh = viewModel::refresh,
-                                onSearchQueryChange = viewModel::setSearchQuery,
-                                onSortOrderChange = viewModel::setSortOrder
-                            )
+                            when (currentTab) {
+                                AppTab.HOME -> GamesListScreen(
+                                    games = state.games,
+                                    favoritesOnly = state.favoritesOnly,
+                                    searchQuery = state.searchQuery,
+                                    sortOrder = state.sortOrder,
+                                    isRefreshing = state.isRefreshing,
+                                    isSearching = state.isSearching,
+                                    isSearchMode = state.isSearchMode,
+                                    onFavoritesOnlyChange = viewModel::setFavoritesOnly,
+                                    onGameClick = viewModel::selectGame,
+                                    onToggleFavorite = viewModel::toggleFavorite,
+                                    onRefresh = viewModel::refresh,
+                                    onSearchQueryChange = viewModel::setSearchQuery,
+                                    onSortOrderChange = viewModel::setSortOrder
+                                )
+                                AppTab.SEARCH -> SearchScreen(
+                                    games = state.games,
+                                    searchQuery = state.searchQuery,
+                                    isSearching = state.isSearching,
+                                    isSearchMode = state.isSearchMode,
+                                    onSearchQueryChange = viewModel::setSearchQuery,
+                                    onGameClick = viewModel::selectGame,
+                                    onToggleFavorite = viewModel::toggleFavorite
+                                )
+                                AppTab.DEALS -> DealsScreen(viewModel = dealsViewModel)
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun BottomNavBar(currentTab: AppTab, onTabChange: (AppTab) -> Unit) {
+    NavigationBar {
+        AppTab.entries.forEach { tab ->
+            NavigationBarItem(
+                selected = currentTab == tab,
+                onClick = { onTabChange(tab) },
+                icon = {
+                    Icon(
+                        imageVector = if (currentTab == tab) tab.selectedIcon else tab.unselectedIcon,
+                        contentDescription = tab.label
+                    )
+                },
+                label = { Text(tab.label) }
+            )
         }
     }
 }
@@ -311,6 +382,100 @@ private fun GamesListScreen(
 }
 
 @Composable
+private fun SearchScreen(
+    games: List<GameSummary>,
+    searchQuery: String,
+    isSearching: Boolean,
+    isSearchMode: Boolean,
+    onSearchQueryChange: (String) -> Unit,
+    onGameClick: (Int) -> Unit,
+    onToggleFavorite: (Int) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp)
+    ) {
+        Spacer(modifier = Modifier.height(18.dp))
+        Text(
+            text = "Wyszukaj",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(14.dp))
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            placeholder = { Text("Wpisz nazwę gry...") },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { onSearchQueryChange("") }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Wyczyść")
+                    }
+                }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        when {
+            isSearchMode && isSearching -> SearchingIndicator(query = searchQuery)
+            isSearchMode && games.isEmpty() -> EmptyFavorites(favoritesOnly = false, searchQuery = searchQuery)
+            isSearchMode -> {
+                Text(
+                    text = "Wyniki dla \"$searchQuery\"",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(games, key = { it.appId }) { game ->
+                        GameRow(
+                            game = game,
+                            onGameClick = onGameClick,
+                            onToggleFavorite = onToggleFavorite
+                        )
+                    }
+                }
+            }
+            else -> SearchEmptyHint()
+        }
+    }
+}
+
+@Composable
+private fun SearchEmptyHint() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 48.dp),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                Icons.Filled.Search,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Wpisz nazwę gry, żeby wyszukać",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+    }
+}
+
+@Composable
 private fun SearchingIndicator(query: String) {
     Box(
         modifier = Modifier
@@ -461,6 +626,7 @@ private fun DetailsScreen(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
+            .navigationBarsPadding()
     ) {
         Box(
             modifier = Modifier
@@ -554,6 +720,20 @@ private fun DetailsScreen(
                     modifier = Modifier.padding(start = 8.dp)
                 )
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    PlayerActivityChart(appId = game.appId, currentPlayers = game.currentPlayers)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

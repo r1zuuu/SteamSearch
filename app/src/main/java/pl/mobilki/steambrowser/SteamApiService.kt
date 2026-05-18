@@ -15,6 +15,7 @@ interface SteamApiService {
     suspend fun getMostPlayedGames(apiKey: String): JsonObject
     suspend fun getCurrentPlayers(appId: Int): JsonObject
     suspend fun searchGames(query: String): JsonObject
+    suspend fun getAppDetails(appId: Int): JsonObject
 }
 
 class DefaultSteamApiService(
@@ -62,6 +63,17 @@ class DefaultSteamApiService(
             .addQueryParameter("appid", appId.toString())
             .build()
 
+        return getJson(url.toString())
+    }
+
+    override suspend fun getAppDetails(appId: Int): JsonObject {
+        val url = "https://store.steampowered.com/api/appdetails"
+            .toHttpUrl()
+            .newBuilder()
+            .addQueryParameter("appids", appId.toString())
+            .addQueryParameter("cc", "PL")
+            .addQueryParameter("filters", "price_overview")
+            .build()
         return getJson(url.toString())
     }
 

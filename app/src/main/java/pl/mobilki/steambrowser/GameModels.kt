@@ -16,6 +16,8 @@ data class GameDetails(
 
 enum class SortOrder { PLAYERS_DESC, PLAYERS_ASC, NAME_ASC }
 
+data class PlayerActivityPoint(val date: String, val players: Int)
+
 sealed interface GamesUiState {
     data object Loading : GamesUiState
     data class Content(

@@ -17,12 +17,16 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    private val dealsViewModel: DealsViewModel by viewModels {
+        DealsViewModel.factory(SteamRepository(DefaultSteamApiService()))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             SteamBrowserTheme {
-                SteamBrowserApp(viewModel = viewModel)
+                SteamBrowserApp(viewModel = viewModel, dealsViewModel = dealsViewModel)
             }
         }
     }
