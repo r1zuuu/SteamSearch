@@ -35,7 +35,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -56,10 +59,7 @@ fun PlayerActivityChart(appId: Int, currentPlayers: Int?) {
     var selectedRange by remember { mutableStateOf(TimeRange.WEEK) }
     var tooltipIndex by remember { mutableIntStateOf(-1) }
 
-    val visibleData = remember(allData, selectedRange) {
-        allData.takeLast(selectedRange.days)
-    }
-
+    val visibleData = remember(allData, selectedRange) { allData.takeLast(selectedRange.days) }
     val stats = remember(visibleData) { computeStats(visibleData) }
 
     Column {
@@ -74,10 +74,7 @@ fun PlayerActivityChart(appId: Int, currentPlayers: Int?) {
             TimeRange.entries.forEach { range ->
                 FilterChip(
                     selected = selectedRange == range,
-                    onClick = {
-                        selectedRange = range
-                        tooltipIndex = -1
-                    },
+                    onClick = { selectedRange = range; tooltipIndex = -1 },
                     label = { Text(range.label) }
                 )
             }
@@ -100,7 +97,7 @@ fun PlayerActivityChart(appId: Int, currentPlayers: Int?) {
 
         Surface(
             shape = RoundedCornerShape(10.dp),
-            color = MaterialTheme.colorScheme.surface,
+            color = MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -119,10 +116,7 @@ fun PlayerActivityChart(appId: Int, currentPlayers: Int?) {
 
 @Composable
 private fun StatRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
     }
@@ -139,18 +133,18 @@ private fun LineChart(
 
     val primaryColor = MaterialTheme.colorScheme.primary
     val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
-    val onSurface = MaterialTheme.colorScheme.onSurface
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
     val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
 
     val maxPlayers = data.maxOf { it.players }.coerceAtLeast(1)
     val minPlayers = data.minOf { it.players }
     val range = (maxPlayers - minPlayers).coerceAtLeast(1)
 
     var canvasWidth by remember { mutableStateOf(0f) }
-    var canvasHeight by remember { mutableStateOf(0f) }
 
     val paddingTop = 12f
-    val paddingBottom = 28f
+    val paddingBottom = with(density) { 24.dp.toPx() }
     val paddingHorizontal = 8f
 
     Box(modifier = modifier) {
@@ -167,7 +161,6 @@ private fun LineChart(
                 }
         ) {
             canvasWidth = size.width
-            canvasHeight = size.height
 
             val chartHeight = size.height - paddingTop - paddingBottom
             val chartWidth = size.width - 2 * paddingHorizontal
@@ -176,7 +169,7 @@ private fun LineChart(
             fun xOf(i: Int) = paddingHorizontal + i * step
             fun yOf(players: Int) = paddingTop + chartHeight * (1f - (players - minPlayers).toFloat() / range)
 
-            // grid lines (3 horizontal)
+            // grid lines
             repeat(3) { i ->
                 val y = paddingTop + chartHeight * i / 2f
                 drawLine(
@@ -187,8 +180,8 @@ private fun LineChart(
                 )
             }
 
-            // fill path
             if (data.size > 1) {
+                // fill path
                 val fillPath = Path().apply {
                     moveTo(xOf(0), yOf(data[0].players))
                     for (i in 1..data.lastIndex) {
@@ -212,27 +205,25 @@ private fun LineChart(
                 drawPath(linePath, color = primaryColor, style = Stroke(width = 2.5f, cap = StrokeCap.Round))
             }
 
-            // X axis labels — show only a few evenly spaced
+            // X axis labels
+            val labelStyle = TextStyle(color = labelColor, fontSize = 9.sp)
+            val fmt = DateTimeFormatter.ofPattern("dd.MM")
             val labelCount = minOf(data.size, if (data.size <= 7) data.size else 5)
             val labelIndices = if (data.size <= labelCount) data.indices.toList()
-            else (0 until labelCount).map { i -> (i * (data.size - 1) / (labelCount - 1).coerceAtLeast(1)).coerceIn(0, data.lastIndex) }
-
-            val fmt = DateTimeFormatter.ofPattern("dd.MM")
-            labelIndices.forEach { i ->
-                val label = runCatching { LocalDate.parse(data[i].date).format(fmt) }.getOrDefault(data[i].date.takeLast(5))
-                drawContext.canvas.nativeCanvas.drawText(
-                    label,
-                    xOf(i),
-                    size.height - 6f,
-                    android.graphics.Paint().apply {
-                        color = android.graphics.Color.argb(150, 180, 180, 200)
-                        textSize = with(density) { 9.sp.toPx() }
-                        textAlign = android.graphics.Paint.Align.CENTER
-                    }
-                )
+            else (0 until labelCount).map { i ->
+                (i * (data.size - 1) / (labelCount - 1).coerceAtLeast(1)).coerceIn(0, data.lastIndex)
             }
 
-            // tooltip dot + vertical line
+            labelIndices.forEach { i ->
+                val label = runCatching { LocalDate.parse(data[i].date).format(fmt) }
+                    .getOrDefault(data[i].date.takeLast(5))
+                val measured = textMeasurer.measure(label, style = labelStyle)
+                val tx = (xOf(i) - measured.size.width / 2f).coerceIn(0f, size.width - measured.size.width)
+                val ty = size.height - measured.size.height
+                drawText(textMeasurer, label, topLeft = Offset(tx, ty), style = labelStyle)
+            }
+
+            // tooltip vertical line + dot
             if (tooltipIndex in data.indices) {
                 val tx = xOf(tooltipIndex)
                 val ty = yOf(data[tooltipIndex].players)
@@ -256,6 +247,7 @@ private fun LineChart(
             val tooltipWidthPx = with(density) { tooltipWidthDp.toPx() }
             val clampedX = rawX.coerceIn(tooltipWidthPx / 2, canvasWidth - tooltipWidthPx / 2)
             val offsetX = with(density) { (clampedX - tooltipWidthPx / 2).toDp() }
+            val fmt = DateTimeFormatter.ofPattern("dd.MM")
 
             Surface(
                 modifier = Modifier
@@ -276,7 +268,6 @@ private fun LineChart(
                         color = MaterialTheme.colorScheme.inverseOnSurface,
                         fontWeight = FontWeight.Bold
                     )
-                    val fmt = DateTimeFormatter.ofPattern("dd.MM")
                     val dateLabel = runCatching { LocalDate.parse(data[tooltipIndex].date).format(fmt) }
                         .getOrDefault(data[tooltipIndex].date.takeLast(5))
                     Text(
@@ -323,10 +314,8 @@ fun generateMockPlayerActivity(appId: Int, currentPlayers: Int?): List<PlayerAct
     }
 }
 
-private fun formatPlayers(players: Int): String {
-    return when {
-        players >= 1_000_000 -> "${"%.1f".format(players / 1_000_000f)}M graczy"
-        players >= 1_000 -> "${"%.1f".format(players / 1_000f)}K graczy"
-        else -> "$players graczy"
-    }
+private fun formatPlayers(players: Int): String = when {
+    players >= 1_000_000 -> "${"%.1f".format(players / 1_000_000f)}M graczy"
+    players >= 1_000 -> "${"%.1f".format(players / 1_000f)}K graczy"
+    else -> "$players graczy"
 }
