@@ -92,6 +92,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -712,15 +713,6 @@ private fun DetailsScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     DetailLine(
-                        icon = { Icon(Icons.Outlined.Tag, contentDescription = null) },
-                        label = "App ID",
-                        value = game.appId.toString()
-                    )
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 2.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    )
-                    DetailLine(
                         icon = { Icon(Icons.Outlined.Group, contentDescription = null) },
                         label = "Aktualni gracze",
                         value = playersText(game.currentPlayers)
@@ -789,18 +781,7 @@ private fun GameMetadataSection(metadata: GameMetadata) {
                     )
                 }
                 if (metadata.pegiRating > 0) {
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0xFF152234), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "PEGI ${metadata.pegiRating}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF00D4FF),
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                    PegiBadge(rating = metadata.pegiRating)
                 }
             }
         }
@@ -819,6 +800,55 @@ private fun GameMetadataSection(metadata: GameMetadata) {
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun PegiBadge(rating: Int) {
+    val borderColor = when {
+        rating >= 18 -> Color(0xFFFF6B6B)
+        rating >= 16 -> Color(0xFFFF8C42)
+        rating >= 12 -> Color(0xFFFFC107)
+        rating >= 7  -> Color(0xFF66BB6A)
+        else         -> Color(0xFF7A9AB5)
+    }
+    Box(
+        modifier = Modifier
+            .size(width = 38.dp, height = 46.dp)
+            .background(Color(0xFF0E1825), RoundedCornerShape(4.dp))
+            .then(
+                Modifier.background(
+                    color = Color.Transparent,
+                    shape = RoundedCornerShape(4.dp)
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        androidx.compose.foundation.Canvas(modifier = Modifier.matchParentSize()) {
+            drawRoundRect(
+                color = borderColor,
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(8f, 8f),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5f)
+            )
+        }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(2.dp)
+        ) {
+            Text(
+                text = "PEGI",
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 6.sp, letterSpacing = 0.8.sp),
+                color = borderColor,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "$rating",
+                style = MaterialTheme.typography.titleLarge.copy(lineHeight = 20.sp),
+                color = Color.White,
+                fontWeight = FontWeight.ExtraBold
             )
         }
     }
