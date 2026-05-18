@@ -3,6 +3,8 @@ package pl.mobilki.steambrowser
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,17 +13,21 @@ import kotlinx.coroutines.launch
 
 class GamesViewModel(
     private val repository: SteamRepository,
-    private val favoritesRepository: FavoritesRepository
+    private val favoritesRepository: FavoritesRepository,
+    private val searchCacheRepository: SearchCacheRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<GamesUiState>(GamesUiState.Loading)
     val uiState: StateFlow<GamesUiState> = _uiState.asStateFlow()
 
     private var allGames: List<GameSummary> = emptyList()
+    private var searchResults: List<GameSummary>? = null
     private var favorites = emptySet<Int>()
     private var selectedAppId: Int? = null
     private var favoritesOnly = false
     private var searchQuery = ""
     private var sortOrder = SortOrder.PLAYERS_DESC
+    private var isSearching = false
+    private var searchJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -57,9 +63,8 @@ class GamesViewModel(
         publishContent()
         viewModelScope.launch {
             repository.getCurrentPlayers(appId).onSuccess { players ->
-                allGames = allGames.map { game ->
-                    if (game.appId == appId) game.copy(currentPlayers = players) else game
-                }
+                allGames = allGames.map { if (it.appId == appId) it.copy(currentPlayers = players) else it }
+                searchResults = searchResults?.map { if (it.appId == appId) it.copy(currentPlayers = players) else it }
                 publishContent()
             }
         }
@@ -84,7 +89,34 @@ class GamesViewModel(
 
     fun setSearchQuery(query: String) {
         searchQuery = query
+        searchJob?.cancel()
+
+        if (query.isBlank()) {
+            searchResults = null
+            isSearching = false
+            publishContent()
+            return
+        }
+
+        isSearching = true
+        searchResults = null
         publishContent()
+
+        searchJob = viewModelScope.launch {
+            delay(500)
+            repository.searchGames(query)
+                .onSuccess { games ->
+                    searchResults = games.map { it.copy(isFavorite = it.appId in favorites) }
+                    isSearching = false
+                    searchCacheRepository.save(games)
+                    publishContent()
+                }
+                .onFailure {
+                    searchResults = emptyList()
+                    isSearching = false
+                    publishContent()
+                }
+        }
     }
 
     fun setSortOrder(order: SortOrder) {
@@ -93,32 +125,42 @@ class GamesViewModel(
     }
 
     private fun publishContent() {
-        val gamesWithFavorites = allGames.map { it.copy(isFavorite = it.appId in favorites) }
+        val isSearchMode = searchQuery.isNotBlank()
 
-        val filtered = gamesWithFavorites
-            .let { list -> if (favoritesOnly) list.filter { it.isFavorite } else list }
-            .let { list ->
-                if (searchQuery.isNotBlank()) list.filter { it.name.contains(searchQuery, ignoreCase = true) } else list
+        val games: List<GameSummary> = when {
+            isSearchMode -> {
+                val results = searchResults ?: emptyList()
+                results.map { it.copy(isFavorite = it.appId in favorites) }
             }
-
-        val sorted = when (sortOrder) {
-            SortOrder.PLAYERS_DESC -> filtered.sortedByDescending { it.currentPlayers ?: -1 }
-            SortOrder.PLAYERS_ASC -> filtered.sortedBy { it.currentPlayers ?: Int.MAX_VALUE }
-            SortOrder.NAME_ASC -> filtered.sortedBy { it.name }
+            else -> {
+                allGames.map { it.copy(isFavorite = it.appId in favorites) }
+                    .let { list -> if (favoritesOnly) list.filter { it.isFavorite } else list }
+                    .let { list ->
+                        when (sortOrder) {
+                            SortOrder.PLAYERS_DESC -> list.sortedByDescending { it.currentPlayers ?: -1 }
+                            SortOrder.PLAYERS_ASC -> list.sortedBy { it.currentPlayers ?: Int.MAX_VALUE }
+                            SortOrder.NAME_ASC -> list.sortedBy { it.name }
+                        }
+                    }
+            }
         }
 
-        val selected = gamesWithFavorites.firstOrNull { it.appId == selectedAppId }?.let {
-            GameDetails(appId = it.appId, name = it.name, currentPlayers = it.currentPlayers, isFavorite = it.isFavorite)
-        }
+        val allWithFavorites = allGames.map { it.copy(isFavorite = it.appId in favorites) }
+        val searchWithFavorites = searchResults?.map { it.copy(isFavorite = it.appId in favorites) }
+        val selected = (searchWithFavorites ?: allWithFavorites)
+            .firstOrNull { it.appId == selectedAppId }
+            ?.let { GameDetails(it.appId, it.name, it.currentPlayers, it.isFavorite) }
 
         _uiState.update {
             GamesUiState.Content(
-                games = sorted,
+                games = games,
                 favoritesOnly = favoritesOnly,
                 selectedGame = selected,
                 searchQuery = searchQuery,
                 sortOrder = sortOrder,
-                isRefreshing = false
+                isRefreshing = false,
+                isSearching = isSearching,
+                isSearchMode = isSearchMode
             )
         }
     }
@@ -126,12 +168,13 @@ class GamesViewModel(
     companion object {
         fun factory(
             repository: SteamRepository,
-            favoritesRepository: FavoritesRepository
+            favoritesRepository: FavoritesRepository,
+            searchCacheRepository: SearchCacheRepository
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return GamesViewModel(repository, favoritesRepository) as T
+                    return GamesViewModel(repository, favoritesRepository, searchCacheRepository) as T
                 }
             }
     }

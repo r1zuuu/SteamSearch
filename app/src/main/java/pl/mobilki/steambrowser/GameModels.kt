@@ -24,7 +24,9 @@ sealed interface GamesUiState {
         val selectedGame: GameDetails?,
         val searchQuery: String = "",
         val sortOrder: SortOrder = SortOrder.PLAYERS_DESC,
-        val isRefreshing: Boolean = false
+        val isRefreshing: Boolean = false,
+        val isSearching: Boolean = false,
+        val isSearchMode: Boolean = false
     ) : GamesUiState
     data class Error(val message: String) : GamesUiState
 }

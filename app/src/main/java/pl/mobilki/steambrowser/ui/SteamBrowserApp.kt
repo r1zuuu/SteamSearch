@@ -141,6 +141,8 @@ fun SteamBrowserApp(viewModel: GamesViewModel) {
                                 searchQuery = state.searchQuery,
                                 sortOrder = state.sortOrder,
                                 isRefreshing = state.isRefreshing,
+                                isSearching = state.isSearching,
+                                isSearchMode = state.isSearchMode,
                                 onFavoritesOnlyChange = viewModel::setFavoritesOnly,
                                 onGameClick = viewModel::selectGame,
                                 onToggleFavorite = viewModel::toggleFavorite,
@@ -164,6 +166,8 @@ private fun GamesListScreen(
     searchQuery: String,
     sortOrder: SortOrder,
     isRefreshing: Boolean,
+    isSearching: Boolean,
+    isSearchMode: Boolean,
     onFavoritesOnlyChange: (Boolean) -> Unit,
     onGameClick: (Int) -> Unit,
     onToggleFavorite: (Int) -> Unit,
@@ -196,7 +200,7 @@ private fun GamesListScreen(
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = onSearchQueryChange,
-                placeholder = { Text("Szukaj gry...") },
+                placeholder = { Text("Szukaj gry na Steam...") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
@@ -206,63 +210,71 @@ private fun GamesListScreen(
             )
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp, bottom = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+        AnimatedVisibility(
+            visible = !isSearchMode,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
         ) {
-            FilterChip(
-                selected = !favoritesOnly,
-                onClick = { onFavoritesOnlyChange(false) },
-                label = { Text("Popularne") },
-                leadingIcon = {
-                    Icon(Icons.Filled.SportsEsports, contentDescription = null, modifier = Modifier.size(18.dp))
-                }
-            )
-            FilterChip(
-                selected = favoritesOnly,
-                onClick = { onFavoritesOnlyChange(true) },
-                label = { Text("Ulubione") },
-                leadingIcon = {
-                    Icon(Icons.Filled.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
-                }
-            )
-            Spacer(modifier = Modifier.weight(1f))
-            Box {
-                IconButton(onClick = { sortMenuExpanded = true }) {
-                    Icon(
-                        Icons.Filled.Sort,
-                        contentDescription = "Sortuj",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                DropdownMenu(
-                    expanded = sortMenuExpanded,
-                    onDismissRequest = { sortMenuExpanded = false }
-                ) {
-                    SortOrder.entries.forEach { order ->
-                        DropdownMenuItem(
-                            text = { Text(order.label()) },
-                            onClick = {
-                                onSortOrderChange(order)
-                                sortMenuExpanded = false
-                            },
-                            leadingIcon = {
-                                if (sortOrder == order) {
-                                    Icon(Icons.Filled.Check, contentDescription = null)
-                                } else {
-                                    Spacer(modifier = Modifier.width(24.dp))
-                                }
-                            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilterChip(
+                    selected = !favoritesOnly,
+                    onClick = { onFavoritesOnlyChange(false) },
+                    label = { Text("Popularne") },
+                    leadingIcon = {
+                        Icon(Icons.Filled.SportsEsports, contentDescription = null, modifier = Modifier.size(18.dp))
+                    }
+                )
+                FilterChip(
+                    selected = favoritesOnly,
+                    onClick = { onFavoritesOnlyChange(true) },
+                    label = { Text("Ulubione") },
+                    leadingIcon = {
+                        Icon(Icons.Filled.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
+                    }
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Box {
+                    IconButton(onClick = { sortMenuExpanded = true }) {
+                        Icon(
+                            Icons.Filled.Sort,
+                            contentDescription = "Sortuj",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                    DropdownMenu(
+                        expanded = sortMenuExpanded,
+                        onDismissRequest = { sortMenuExpanded = false }
+                    ) {
+                        SortOrder.entries.forEach { order ->
+                            DropdownMenuItem(
+                                text = { Text(order.label()) },
+                                onClick = {
+                                    onSortOrderChange(order)
+                                    sortMenuExpanded = false
+                                },
+                                leadingIcon = {
+                                    if (sortOrder == order) {
+                                        Icon(Icons.Filled.Check, contentDescription = null)
+                                    } else {
+                                        Spacer(modifier = Modifier.width(24.dp))
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
 
-        if (games.isEmpty() && !isRefreshing) {
+        if (isSearchMode && isSearching) {
+            SearchingIndicator(query = searchQuery)
+        } else if (games.isEmpty() && !isRefreshing) {
             EmptyFavorites(favoritesOnly = favoritesOnly, searchQuery = searchQuery)
         } else {
             PullToRefreshBox(
@@ -275,6 +287,16 @@ private fun GamesListScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
+                    if (isSearchMode) {
+                        item {
+                            Text(
+                                text = "Wyniki dla \"$searchQuery\"",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            )
+                        }
+                    }
                     items(games, key = { it.appId }) { game ->
                         GameRow(
                             game = game,
@@ -284,6 +306,29 @@ private fun GamesListScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SearchingIndicator(query: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(top = 48.dp),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            androidx.compose.material3.CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(36.dp)
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Text(
+                text = "Szukam \"$query\"...",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium
+            )
         }
     }
 }

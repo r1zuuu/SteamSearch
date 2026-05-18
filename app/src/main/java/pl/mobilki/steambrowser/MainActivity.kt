@@ -12,7 +12,8 @@ class MainActivity : ComponentActivity() {
     private val viewModel: GamesViewModel by viewModels {
         GamesViewModel.factory(
             SteamRepository(DefaultSteamApiService()),
-            FavoritesRepository(applicationContext)
+            FavoritesRepository(applicationContext),
+            SearchCacheRepository(applicationContext)
         )
     }
 

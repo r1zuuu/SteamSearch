@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit
 interface SteamApiService {
     suspend fun getMostPlayedGames(apiKey: String): JsonObject
     suspend fun getCurrentPlayers(appId: Int): JsonObject
+    suspend fun searchGames(query: String): JsonObject
 }
 
 class DefaultSteamApiService(
@@ -39,6 +40,18 @@ class DefaultSteamApiService(
             .addQueryParameter("input_json", inputJson)
             .build()
 
+        return getJson(url.toString())
+    }
+
+    override suspend fun searchGames(query: String): JsonObject {
+        val url = "https://store.steampowered.com/api/storesearch/"
+            .toHttpUrl()
+            .newBuilder()
+            .addQueryParameter("term", query)
+            .addQueryParameter("cc", "PL")
+            .addQueryParameter("l", "polish")
+            .addQueryParameter("count", "15")
+            .build()
         return getJson(url.toString())
     }
 

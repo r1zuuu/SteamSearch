@@ -10,6 +10,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class SteamRepository(
     private val api: SteamApiService
@@ -38,6 +39,28 @@ class SteamRepository(
                         game.copy(currentPlayers = getCurrentPlayers(game.appId).getOrNull())
                     }
                 }
+            }.awaitAll()
+        }
+    }
+
+    suspend fun searchGames(query: String): Result<List<GameSummary>> = runCatching {
+        val response = api.searchGames(query)
+        val items = (response["items"] as? JsonArray)
+            ?.mapNotNull { it.asJsonObjectOrNull() }
+            ?: throw IllegalStateException("Brak wyników dla zapytania.")
+
+        val games = items.mapNotNull { item ->
+            val appId = (item["id"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null
+            val name = (item["name"] as? JsonPrimitive)?.contentOrNull
+                ?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            GameSummary(appId = appId, name = name, currentPlayers = null, isFavorite = false)
+        }
+
+        if (games.isEmpty()) throw IllegalStateException("Nie znaleziono gier dla \"$query\".")
+
+        coroutineScope {
+            games.map { game ->
+                async { game.copy(currentPlayers = getCurrentPlayers(game.appId).getOrNull()) }
             }.awaitAll()
         }
     }
