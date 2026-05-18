@@ -23,7 +23,7 @@ class SteamRepository(
         val parsedGames = response.extractGameObjects()
             .mapNotNull { it.toGameSummary() }
             .distinctBy { it.appId }
-            .take(25)
+            .take(100)
 
         if (parsedGames.isEmpty()) {
             throw IllegalStateException("Nie udało się odczytać listy popularnych gier ze Steam.")
