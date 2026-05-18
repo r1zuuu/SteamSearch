@@ -15,6 +15,9 @@ val localProperties = Properties().apply {
 }
 val steamApiKey = localProperties.getProperty("STEAM_API_KEY", "")
 val escapedSteamApiKey = steamApiKey.replace("\\", "\\\\").replace("\"", "\\\"")
+val groqApiKey = localProperties.getProperty("GROQ_API_KEY", "")
+val escapedGroqApiKey = groqApiKey.replace("\\", "\\\\").replace("\"", "\\\"")
+val groqModel = localProperties.getProperty("GROQ_MODEL", "llama-3.1-8b-instant")
 
 android {
     namespace = "pl.mobilki.steambrowser"
@@ -29,6 +32,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "STEAM_API_KEY", "\"$escapedSteamApiKey\"")
+        buildConfigField("String", "GROQ_API_KEY", "\"$escapedGroqApiKey\"")
+        buildConfigField("String", "GROQ_MODEL", "\"$groqModel\"")
         vectorDrawables {
             useSupportLibrary = true
         }

@@ -17,6 +17,8 @@ interface SteamApiService {
     suspend fun searchGames(query: String): JsonObject
     suspend fun getAppDetails(appId: Int): JsonObject
     suspend fun getFeaturedCategories(): JsonObject
+    suspend fun getSteamReviews(appId: Int, filter: String, num: Int): JsonObject
+    suspend fun getGameFullDetails(appId: Int): JsonObject
 }
 
 class DefaultSteamApiService(
@@ -84,6 +86,32 @@ class DefaultSteamApiService(
             .newBuilder()
             .addQueryParameter("cc", "PL")
             .addQueryParameter("l", "polish")
+            .build()
+        return getJson(url.toString())
+    }
+
+    override suspend fun getGameFullDetails(appId: Int): JsonObject {
+        val url = "https://store.steampowered.com/api/appdetails"
+            .toHttpUrl()
+            .newBuilder()
+            .addQueryParameter("appids", appId.toString())
+            .addQueryParameter("cc", "PL")
+            .addQueryParameter("l", "polish")
+            .addQueryParameter("filters", "basic,genres")
+            .build()
+        return getJson(url.toString())
+    }
+
+    override suspend fun getSteamReviews(appId: Int, filter: String, num: Int): JsonObject {
+        val url = "https://store.steampowered.com/appreviews/$appId"
+            .toHttpUrl()
+            .newBuilder()
+            .addQueryParameter("json", "1")
+            .addQueryParameter("filter", filter)
+            .addQueryParameter("language", "all")
+            .addQueryParameter("review_type", "all")
+            .addQueryParameter("purchase_type", "all")
+            .addQueryParameter("num_per_page", num.toString())
             .build()
         return getJson(url.toString())
     }

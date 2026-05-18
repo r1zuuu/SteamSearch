@@ -21,12 +21,22 @@ class MainActivity : ComponentActivity() {
         DealsViewModel.factory(SteamRepository(DefaultSteamApiService()))
     }
 
+    private val reviewViewModel: ReviewViewModel by viewModels {
+        ReviewViewModel.factory(
+            ReviewRepository(DefaultSteamApiService(), GroqApiService())
+        )
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             SteamBrowserTheme {
-                SteamBrowserApp(viewModel = viewModel, dealsViewModel = dealsViewModel)
+                SteamBrowserApp(
+                    viewModel = viewModel,
+                    dealsViewModel = dealsViewModel,
+                    reviewViewModel = reviewViewModel
+                )
             }
         }
     }

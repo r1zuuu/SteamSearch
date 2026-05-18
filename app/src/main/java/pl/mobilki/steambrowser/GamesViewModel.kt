@@ -19,6 +19,10 @@ class GamesViewModel(
     private val _uiState = MutableStateFlow<GamesUiState>(GamesUiState.Loading)
     val uiState: StateFlow<GamesUiState> = _uiState.asStateFlow()
 
+    private val _gameMetadata = MutableStateFlow<GameMetadata?>(null)
+    val gameMetadata: StateFlow<GameMetadata?> = _gameMetadata.asStateFlow()
+    private val metadataCache = mutableMapOf<Int, GameMetadata>()
+
     private var allGames: List<GameSummary> = emptyList()
     private var searchResults: List<GameSummary>? = null
     private var favorites = emptySet<Int>()
@@ -60,12 +64,21 @@ class GamesViewModel(
 
     fun selectGame(appId: Int) {
         selectedAppId = appId
+        _gameMetadata.value = metadataCache[appId]
         publishContent()
         viewModelScope.launch {
             repository.getCurrentPlayers(appId).onSuccess { players ->
                 allGames = allGames.map { if (it.appId == appId) it.copy(currentPlayers = players) else it }
                 searchResults = searchResults?.map { if (it.appId == appId) it.copy(currentPlayers = players) else it }
                 publishContent()
+            }
+            if (appId !in metadataCache) {
+                repository.getGameMetadata(appId).onSuccess { meta ->
+                    if (meta != null) {
+                        metadataCache[appId] = meta
+                        if (selectedAppId == appId) _gameMetadata.value = meta
+                    }
+                }
             }
         }
     }
@@ -79,6 +92,7 @@ class GamesViewModel(
 
     fun closeDetails() {
         selectedAppId = null
+        _gameMetadata.value = null
         publishContent()
     }
 

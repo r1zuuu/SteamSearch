@@ -74,6 +74,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -94,11 +95,13 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import pl.mobilki.steambrowser.DealsViewModel
 import pl.mobilki.steambrowser.GameDetails
+import pl.mobilki.steambrowser.GameMetadata
 import pl.mobilki.steambrowser.GameSummary
 import pl.mobilki.steambrowser.GamesUiState
 import pl.mobilki.steambrowser.GamesViewModel
-import pl.mobilki.steambrowser.DealsViewModel
+import pl.mobilki.steambrowser.ReviewViewModel
 import pl.mobilki.steambrowser.SortOrder
 import java.text.NumberFormat
 import java.util.Locale
@@ -115,8 +118,9 @@ enum class AppTab(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SteamBrowserApp(viewModel: GamesViewModel, dealsViewModel: DealsViewModel) {
+fun SteamBrowserApp(viewModel: GamesViewModel, dealsViewModel: DealsViewModel, reviewViewModel: ReviewViewModel) {
     val uiState by viewModel.uiState.collectAsState()
+    val gameMetadata by viewModel.gameMetadata.collectAsState()
     var currentTab by remember { mutableStateOf(AppTab.HOME) }
 
     val selectedGame = (uiState as? GamesUiState.Content)?.selectedGame
@@ -172,8 +176,10 @@ fun SteamBrowserApp(viewModel: GamesViewModel, dealsViewModel: DealsViewModel) {
                         if (selectedGame != null) {
                             DetailsScreen(
                                 game = selectedGame,
+                                metadata = gameMetadata,
                                 onBack = viewModel::closeDetails,
-                                onToggleFavorite = { viewModel.toggleFavorite(selectedGame.appId) }
+                                onToggleFavorite = { viewModel.toggleFavorite(selectedGame.appId) },
+                                reviewViewModel = reviewViewModel
                             )
                         } else {
                             when (currentTab) {
@@ -632,9 +638,12 @@ private fun GameThumbnail(appId: Int, name: String) {
 @Composable
 private fun DetailsScreen(
     game: GameDetails,
+    metadata: GameMetadata?,
     onBack: () -> Unit,
-    onToggleFavorite: () -> Unit
+    onToggleFavorite: () -> Unit,
+    reviewViewModel: ReviewViewModel
 ) {
+    LaunchedEffect(game.appId) { reviewViewModel.loadForGame(game.appId) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -688,6 +697,12 @@ private fun DetailsScreen(
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
+
+            if (metadata != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                GameMetadataSection(metadata = metadata)
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
 
             Surface(
@@ -749,6 +764,62 @@ private fun DetailsScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            ReviewPulseCard(viewModel = reviewViewModel)
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun GameMetadataSection(metadata: GameMetadata) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        if (metadata.genres.isNotEmpty() || metadata.pegiRating > 0) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (metadata.genres.isNotEmpty()) {
+                    Text(
+                        text = metadata.genres.take(3).joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                }
+                if (metadata.pegiRating > 0) {
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFF152234), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "PEGI ${metadata.pegiRating}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF00D4FF),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+        }
+        if (metadata.developers.isNotEmpty()) {
+            Text(
+                text = metadata.developers.take(2).joinToString(", "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (metadata.shortDescription.isNotBlank()) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = metadata.shortDescription,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

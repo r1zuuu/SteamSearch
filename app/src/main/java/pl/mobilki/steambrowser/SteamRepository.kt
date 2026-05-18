@@ -126,6 +126,32 @@ class SteamRepository(
         )
     }
 
+    suspend fun getGameMetadata(appId: Int): Result<GameMetadata?> = runCatching {
+        val response = api.getGameFullDetails(appId)
+        val gameEntry = (response[appId.toString()] as? JsonObject) ?: return@runCatching null
+        val success = (gameEntry["success"] as? JsonPrimitive)?.content == "true"
+        if (!success) return@runCatching null
+        val data = (gameEntry["data"] as? JsonObject) ?: return@runCatching null
+
+        val shortDescription = (data["short_description"] as? JsonPrimitive)?.contentOrNull ?: ""
+        val genres = (data["genres"] as? JsonArray)
+            ?.mapNotNull { (it.asJsonObjectOrNull()?.get("description") as? JsonPrimitive)?.contentOrNull }
+            ?: emptyList()
+        val pegiRating = (data["required_age"] as? JsonPrimitive)?.intOrNull
+            ?: (data["required_age"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull()
+            ?: 0
+        val developers = (data["developers"] as? JsonArray)
+            ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+            ?: emptyList()
+
+        GameMetadata(
+            shortDescription = shortDescription,
+            genres = genres,
+            pegiRating = pegiRating,
+            developers = developers
+        )
+    }
+
     suspend fun getCurrentPlayers(appId: Int): Result<Int> = runCatching {
         val response = api.getCurrentPlayers(appId)
         response.findInt("player_count")

@@ -14,6 +14,13 @@ data class GameDetails(
     val isFavorite: Boolean
 )
 
+data class GameMetadata(
+    val shortDescription: String,
+    val genres: List<String>,
+    val pegiRating: Int,
+    val developers: List<String>
+)
+
 enum class SortOrder { PLAYERS_DESC, PLAYERS_ASC, NAME_ASC }
 
 data class PlayerActivityPoint(val date: String, val players: Int)
