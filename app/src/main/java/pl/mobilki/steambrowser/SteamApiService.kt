@@ -16,6 +16,7 @@ interface SteamApiService {
     suspend fun getCurrentPlayers(appId: Int): JsonObject
     suspend fun searchGames(query: String): JsonObject
     suspend fun getAppDetails(appId: Int): JsonObject
+    suspend fun getFeaturedCategories(): JsonObject
 }
 
 class DefaultSteamApiService(
@@ -73,6 +74,16 @@ class DefaultSteamApiService(
             .addQueryParameter("appids", appId.toString())
             .addQueryParameter("cc", "PL")
             .addQueryParameter("filters", "price_overview")
+            .build()
+        return getJson(url.toString())
+    }
+
+    override suspend fun getFeaturedCategories(): JsonObject {
+        val url = "https://store.steampowered.com/api/featuredcategories/"
+            .toHttpUrl()
+            .newBuilder()
+            .addQueryParameter("cc", "PL")
+            .addQueryParameter("l", "polish")
             .build()
         return getJson(url.toString())
     }

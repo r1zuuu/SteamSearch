@@ -65,6 +65,48 @@ class SteamRepository(
         }
     }
 
+    suspend fun getFeaturedDeals(): Result<List<DealItem>> = runCatching {
+        val response = api.getFeaturedCategories()
+        val specials = (response["specials"] as? JsonObject)
+            ?: throw IllegalStateException("Brak sekcji promocji w odpowiedzi Steam.")
+        val items = (specials["items"] as? JsonArray)
+            ?.mapNotNull { it.asJsonObjectOrNull() }
+            ?: throw IllegalStateException("Brak listy promocji.")
+
+        val deals = items.mapNotNull { item ->
+            val appId = (item["id"] as? JsonPrimitive)?.intOrNull ?: return@mapNotNull null
+            val name = (item["name"] as? JsonPrimitive)?.contentOrNull
+                ?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            val discount = (item["discount_percent"] as? JsonPrimitive)?.intOrNull ?: 0
+            if (discount <= 0) return@mapNotNull null
+            val originalCents = (item["original_price"] as? JsonPrimitive)?.intOrNull ?: 0
+            val finalCents = (item["final_price"] as? JsonPrimitive)?.intOrNull ?: 0
+            val currency = (item["currency"] as? JsonPrimitive)?.contentOrNull ?: "PLN"
+            val price = GamePrice(
+                currency = currency,
+                initialCents = originalCents,
+                finalCents = finalCents,
+                discountPercent = discount,
+                initialFormatted = formatPricePln(originalCents),
+                finalFormatted = formatPricePln(finalCents)
+            )
+            DealItem(appId = appId, name = name, price = price)
+        }
+
+        if (deals.isEmpty()) throw IllegalStateException("Brak aktualnych promocji.")
+
+        coroutineScope {
+            deals.map { deal ->
+                async {
+                    val players = getCurrentPlayers(deal.appId).getOrNull()
+                    val score = (deal.price?.discountPercent ?: 0) *
+                        kotlin.math.log10((players ?: 0).coerceAtLeast(100).toDouble() + 1)
+                    deal.copy(currentPlayers = players, dealScore = score)
+                }
+            }.awaitAll()
+        }.sortedByDescending { it.dealScore }
+    }
+
     suspend fun getGamePrice(appId: Int): Result<GamePrice?> = runCatching {
         val response = api.getAppDetails(appId)
         val gameData = (response[appId.toString()] as? JsonObject) ?: return@runCatching null
@@ -113,6 +155,12 @@ class SteamRepository(
             isFavorite = false
         )
     }
+}
+
+private fun formatPricePln(cents: Int): String {
+    val zloty = cents / 100
+    val grosze = cents % 100
+    return "$zloty,${"%02d".format(grosze)} zł"
 }
 
 fun Throwable.toPolishMessage(): String = when (this) {

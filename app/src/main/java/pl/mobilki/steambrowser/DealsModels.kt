@@ -12,7 +12,9 @@ data class GamePrice(
 data class DealItem(
     val appId: Int,
     val name: String,
-    val price: GamePrice?
+    val price: GamePrice?,
+    val currentPlayers: Int? = null,
+    val dealScore: Double = 0.0
 )
 
 sealed interface DealsUiState {

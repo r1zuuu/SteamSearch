@@ -150,6 +150,14 @@ private fun DealCard(deal: DealItem) {
                 PriceInfo(price = deal.price)
                 Spacer(modifier = Modifier.height(3.dp))
                 DealRatingText(price = deal.price)
+                deal.currentPlayers?.let { players ->
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = formatDealPlayers(players),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
             deal.price?.let { price ->
@@ -262,6 +270,12 @@ private fun DealsError(message: String, onRetry: () -> Unit) {
             }
         }
     }
+}
+
+private fun formatDealPlayers(players: Int): String = when {
+    players >= 1_000_000 -> "${"%.1f".format(players / 1_000_000f)}M graczy teraz"
+    players >= 1_000 -> "${(players / 1_000)} tys. graczy teraz"
+    else -> "$players graczy teraz"
 }
 
 @Composable
