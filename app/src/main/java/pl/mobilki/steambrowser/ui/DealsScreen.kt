@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -104,17 +105,32 @@ fun DealsScreen(viewModel: DealsViewModel, onGameClick: (Int, String) -> Unit = 
 
 @Composable
 private fun DealCard(deal: DealItem, onClick: () -> Unit) {
+    val isHotDeal = (deal.price?.discountPercent ?: 0) >= 70
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp
+        tonalElevation = 2.dp
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isHotDeal) {
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .fillMaxHeight()
+                        .background(Color(0xFF00D4FF))
+                )
+            }
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
@@ -170,6 +186,7 @@ private fun DealCard(deal: DealItem, onClick: () -> Unit) {
                 }
             }
         }
+        }
     }
 }
 
@@ -179,14 +196,14 @@ private fun PriceInfo(price: GamePrice?) {
         price == null -> Text(
             text = "Free to play",
             style = MaterialTheme.typography.bodySmall,
-            color = Color(0xFF4CAF50),
+            color = Color(0xFF00D4FF),
             fontWeight = FontWeight.SemiBold
         )
         price.discountPercent > 0 -> Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = price.finalFormatted,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF4CAF50),
+                color = Color(0xFF00D4FF),
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.width(6.dp))
@@ -208,9 +225,9 @@ private fun PriceInfo(price: GamePrice?) {
 @Composable
 private fun DealRatingText(price: GamePrice?) {
     val (text, color) = when {
-        price == null -> "Free to play" to Color(0xFF4CAF50)
-        price.discountPercent >= 70 -> "Bardzo dobra promocja" to Color(0xFF4CAF50)
-        price.discountPercent >= 40 -> "Dobra promocja" to Color(0xFF8BC34A)
+        price == null -> "Free to play" to Color(0xFF00D4FF)
+        price.discountPercent >= 70 -> "Bardzo dobra promocja" to Color(0xFF00D4FF)
+        price.discountPercent >= 40 -> "Dobra promocja" to Color(0xFF0099CC)
         price.discountPercent >= 1 -> "Mała promocja" to Color(0xFFFFC107)
         else -> "Brak promocji" to MaterialTheme.colorScheme.onSurfaceVariant
     }
@@ -221,13 +238,13 @@ private fun DealRatingText(price: GamePrice?) {
 private fun DiscountBadge(discount: Int) {
     Box(
         modifier = Modifier
-            .background(Color(0xFF4CAF50), RoundedCornerShape(6.dp))
+            .background(Color(0xFF00D4FF), RoundedCornerShape(6.dp))
             .padding(horizontal = 7.dp, vertical = 4.dp)
     ) {
         Text(
             text = "-$discount%",
             style = MaterialTheme.typography.labelSmall,
-            color = Color.White,
+            color = Color(0xFF001B22),
             fontWeight = FontWeight.Bold
         )
     }
@@ -241,7 +258,7 @@ private fun DealsShimmer() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(68.dp),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surface
             ) {}
         }

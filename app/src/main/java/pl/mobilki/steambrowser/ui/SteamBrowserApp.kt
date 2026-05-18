@@ -67,6 +67,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -146,7 +147,7 @@ fun SteamBrowserApp(viewModel: GamesViewModel, dealsViewModel: DealsViewModel) {
                 .padding(scaffoldPadding)
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(Color(0xFF101722), Color(0xFF132033), Color(0xFF101722))
+                        colors = listOf(Color(0xFF070B11), Color(0xFF0A1520), Color(0xFF070B11))
                     )
                 )
                 .statusBarsPadding()
@@ -217,7 +218,7 @@ fun SteamBrowserApp(viewModel: GamesViewModel, dealsViewModel: DealsViewModel) {
 
 @Composable
 private fun BottomNavBar(currentTab: AppTab, onTabChange: (AppTab) -> Unit) {
-    NavigationBar {
+    NavigationBar(containerColor = Color(0xFF0A1520)) {
         AppTab.entries.forEach { tab ->
             NavigationBarItem(
                 selected = currentTab == tab,
@@ -228,7 +229,14 @@ private fun BottomNavBar(currentTab: AppTab, onTabChange: (AppTab) -> Unit) {
                         contentDescription = tab.label
                     )
                 },
-                label = { Text(tab.label) }
+                label = { Text(tab.label) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = Color(0xFF00D4FF),
+                    selectedTextColor = Color(0xFF00D4FF),
+                    indicatorColor = Color(0xFF003543),
+                    unselectedIconColor = Color(0xFF7A9AB5),
+                    unselectedTextColor = Color(0xFF7A9AB5)
+                )
             )
         }
     }
@@ -548,11 +556,11 @@ private fun GameRow(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable { onGameClick(game.appId) },
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp,
-        shape = RoundedCornerShape(12.dp)
+        tonalElevation = 2.dp,
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -657,9 +665,9 @@ private fun DetailsScreen(
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color(0x88000000), Color.Transparent),
+                            colors = listOf(Color(0xBB000000), Color.Transparent, Color(0xFF070B11)),
                             startY = 0f,
-                            endY = 300f
+                            endY = Float.POSITIVE_INFINITY
                         )
                     )
             )
@@ -710,10 +718,12 @@ private fun DetailsScreen(
             Button(
                 onClick = onToggleFavorite,
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (game.isFavorite) MaterialTheme.colorScheme.surfaceVariant
-                    else MaterialTheme.colorScheme.primary
+                    containerColor = if (game.isFavorite) Color(0xFF003543)
+                    else MaterialTheme.colorScheme.primary,
+                    contentColor = if (game.isFavorite) Color(0xFF00D4FF)
+                    else MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 Icon(
@@ -792,7 +802,7 @@ private fun ShimmerLoadingScreen() {
         label = "shimmer_x"
     )
     val shimmerBrush = Brush.linearGradient(
-        colors = listOf(Color(0xFF1E2D42), Color(0xFF2E4260), Color(0xFF1E2D42)),
+        colors = listOf(Color(0xFF0E1825), Color(0xFF152234), Color(0xFF0E1825)),
         start = Offset(translateAnim, 0f),
         end = Offset(translateAnim + 300f, 0f)
     )
