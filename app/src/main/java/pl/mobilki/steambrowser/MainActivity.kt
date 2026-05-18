@@ -10,7 +10,10 @@ import pl.mobilki.steambrowser.ui.theme.SteamBrowserTheme
 
 class MainActivity : ComponentActivity() {
     private val viewModel: GamesViewModel by viewModels {
-        GamesViewModel.factory(SteamRepository(DefaultSteamApiService()))
+        GamesViewModel.factory(
+            SteamRepository(DefaultSteamApiService()),
+            FavoritesRepository(applicationContext)
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

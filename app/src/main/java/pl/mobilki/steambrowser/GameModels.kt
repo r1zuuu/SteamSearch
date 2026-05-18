@@ -14,13 +14,17 @@ data class GameDetails(
     val isFavorite: Boolean
 )
 
+enum class SortOrder { PLAYERS_DESC, PLAYERS_ASC, NAME_ASC }
+
 sealed interface GamesUiState {
     data object Loading : GamesUiState
     data class Content(
         val games: List<GameSummary>,
         val favoritesOnly: Boolean,
-        val selectedGame: GameDetails?
+        val selectedGame: GameDetails?,
+        val searchQuery: String = "",
+        val sortOrder: SortOrder = SortOrder.PLAYERS_DESC,
+        val isRefreshing: Boolean = false
     ) : GamesUiState
-
     data class Error(val message: String) : GamesUiState
 }

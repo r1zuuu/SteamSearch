@@ -10,7 +10,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class GamesViewModel(
-    private val repository: SteamRepository
+    private val repository: SteamRepository,
+    private val favoritesRepository: FavoritesRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow<GamesUiState>(GamesUiState.Loading)
     val uiState: StateFlow<GamesUiState> = _uiState.asStateFlow()
@@ -19,14 +20,27 @@ class GamesViewModel(
     private var favorites = emptySet<Int>()
     private var selectedAppId: Int? = null
     private var favoritesOnly = false
+    private var searchQuery = ""
+    private var sortOrder = SortOrder.PLAYERS_DESC
 
     init {
+        viewModelScope.launch {
+            favoritesRepository.favoritesFlow.collect { saved ->
+                favorites = saved
+                if (allGames.isNotEmpty()) publishContent()
+            }
+        }
         refresh()
     }
 
     fun refresh() {
-        viewModelScope.launch {
+        val current = _uiState.value
+        if (current is GamesUiState.Content) {
+            _uiState.value = current.copy(isRefreshing = true)
+        } else {
             _uiState.value = GamesUiState.Loading
+        }
+        viewModelScope.launch {
             repository.getPopularGames(BuildConfig.STEAM_API_KEY)
                 .onSuccess { games ->
                     allGames = games
@@ -57,11 +71,9 @@ class GamesViewModel(
     }
 
     fun toggleFavorite(appId: Int) {
-        favorites = if (appId in favorites) {
-            favorites - appId
-        } else {
-            favorites + appId
-        }
+        val newFavorites = if (appId in favorites) favorites - appId else favorites + appId
+        favorites = newFavorites
+        viewModelScope.launch { favoritesRepository.save(newFavorites) }
         publishContent()
     }
 
@@ -70,36 +82,56 @@ class GamesViewModel(
         publishContent()
     }
 
+    fun setSearchQuery(query: String) {
+        searchQuery = query
+        publishContent()
+    }
+
+    fun setSortOrder(order: SortOrder) {
+        sortOrder = order
+        publishContent()
+    }
+
     private fun publishContent() {
         val gamesWithFavorites = allGames.map { it.copy(isFavorite = it.appId in favorites) }
-        val visibleGames = if (favoritesOnly) {
-            gamesWithFavorites.filter { it.isFavorite }
-        } else {
-            gamesWithFavorites
+
+        val filtered = gamesWithFavorites
+            .let { list -> if (favoritesOnly) list.filter { it.isFavorite } else list }
+            .let { list ->
+                if (searchQuery.isNotBlank()) list.filter { it.name.contains(searchQuery, ignoreCase = true) } else list
+            }
+
+        val sorted = when (sortOrder) {
+            SortOrder.PLAYERS_DESC -> filtered.sortedByDescending { it.currentPlayers ?: -1 }
+            SortOrder.PLAYERS_ASC -> filtered.sortedBy { it.currentPlayers ?: Int.MAX_VALUE }
+            SortOrder.NAME_ASC -> filtered.sortedBy { it.name }
         }
+
         val selected = gamesWithFavorites.firstOrNull { it.appId == selectedAppId }?.let {
-            GameDetails(
-                appId = it.appId,
-                name = it.name,
-                currentPlayers = it.currentPlayers,
-                isFavorite = it.isFavorite
-            )
+            GameDetails(appId = it.appId, name = it.name, currentPlayers = it.currentPlayers, isFavorite = it.isFavorite)
         }
+
         _uiState.update {
             GamesUiState.Content(
-                games = visibleGames,
+                games = sorted,
                 favoritesOnly = favoritesOnly,
-                selectedGame = selected
+                selectedGame = selected,
+                searchQuery = searchQuery,
+                sortOrder = sortOrder,
+                isRefreshing = false
             )
         }
     }
 
     companion object {
-        fun factory(repository: SteamRepository): ViewModelProvider.Factory =
+        fun factory(
+            repository: SteamRepository,
+            favoritesRepository: FavoritesRepository
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return GamesViewModel(repository) as T
+                    return GamesViewModel(repository, favoritesRepository) as T
                 }
             }
     }
