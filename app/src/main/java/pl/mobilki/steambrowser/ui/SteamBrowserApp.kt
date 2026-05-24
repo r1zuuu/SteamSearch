@@ -84,6 +84,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -269,6 +271,13 @@ private fun GamesListScreen(
 ) {
     var searchVisible by remember { mutableStateOf(searchQuery.isNotEmpty()) }
     var sortMenuExpanded by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(searchVisible) {
+        if (searchVisible) {
+            focusRequester.requestFocus()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -299,6 +308,7 @@ private fun GamesListScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 10.dp)
+                    .focusRequester(focusRequester)
             )
         }
 
@@ -412,6 +422,12 @@ private fun SearchScreen(
     onGameClick: (Int) -> Unit,
     onToggleFavorite: (Int) -> Unit
 ) {
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -438,7 +454,9 @@ private fun SearchScreen(
             },
             singleLine = true,
             shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester)
         )
         Spacer(modifier = Modifier.height(12.dp))
 

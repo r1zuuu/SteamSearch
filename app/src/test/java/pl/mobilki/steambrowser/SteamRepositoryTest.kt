@@ -68,5 +68,11 @@ class SteamRepositoryTest {
 
         override suspend fun getCurrentPlayers(appId: Int): JsonObject =
             json.parseToJsonElement(currentPlayersJson).jsonObject
+
+        override suspend fun searchGames(query: String): JsonObject = JsonObject(emptyMap())
+        override suspend fun getAppDetails(appId: Int): JsonObject = JsonObject(emptyMap())
+        override suspend fun getFeaturedCategories(): JsonObject = JsonObject(emptyMap())
+        override suspend fun getSteamReviews(appId: Int, filter: String, num: Int): JsonObject = JsonObject(emptyMap())
+        override suspend fun getGameFullDetails(appId: Int): JsonObject = JsonObject(emptyMap())
     }
 }
