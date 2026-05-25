@@ -25,6 +25,25 @@ enum class SortOrder { PLAYERS_DESC, PLAYERS_ASC, NAME_ASC }
 
 data class PlayerActivityPoint(val date: String, val players: Int)
 
+data class OwnedGame(
+    val appId: Int,
+    val name: String,
+    val playtimeForever: Int, // in minutes
+    val imgIconUrl: String?
+) {
+    val iconUrl: String? get() = if (imgIconUrl != null) {
+        "https://media.steampowered.com/steamcommunity/public/images/apps/$appId/$imgIconUrl.jpg"
+    } else null
+}
+
+data class Achievement(
+    val apiname: String,
+    val achieved: Int,
+    val unlockTime: Long,
+    val name: String? = null,
+    val description: String? = null
+)
+
 sealed interface GamesUiState {
     data object Loading : GamesUiState
     data class Content(

@@ -23,6 +23,8 @@ interface SteamApiService {
     suspend fun getGameFullDetails(appId: Int): JsonObject
     suspend fun verifyOpenIdResponse(responseUrl: String): Boolean
     suspend fun getPlayerSummaries(apiKey: String, steamIds: String): JsonObject
+    suspend fun getOwnedGames(apiKey: String, steamId: String): JsonObject
+    suspend fun getPlayerAchievements(apiKey: String, steamId: String, appId: Int): JsonObject
 }
 
 class DefaultSteamApiService(
@@ -149,6 +151,30 @@ class DefaultSteamApiService(
             .newBuilder()
             .addQueryParameter("key", apiKey)
             .addQueryParameter("steamids", steamIds)
+            .build()
+        return getJson(url.toString())
+    }
+
+    override suspend fun getOwnedGames(apiKey: String, steamId: String): JsonObject {
+        val url = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/"
+            .toHttpUrl()
+            .newBuilder()
+            .addQueryParameter("key", apiKey)
+            .addQueryParameter("steamid", steamId)
+            .addQueryParameter("include_appinfo", "true")
+            .addQueryParameter("format", "json")
+            .build()
+        return getJson(url.toString())
+    }
+
+    override suspend fun getPlayerAchievements(apiKey: String, steamId: String, appId: Int): JsonObject {
+        val url = "https://api.steampowered.com/ISteamUserStats/GetPlayerAchievements/v0001/"
+            .toHttpUrl()
+            .newBuilder()
+            .addQueryParameter("key", apiKey)
+            .addQueryParameter("steamid", steamId)
+            .addQueryParameter("appid", appId.toString())
+            .addQueryParameter("l", "polish")
             .build()
         return getJson(url.toString())
     }
