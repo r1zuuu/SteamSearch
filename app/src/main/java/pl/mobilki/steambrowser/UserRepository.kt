@@ -14,23 +14,30 @@ private val Context.userDataStore: DataStore<Preferences> by preferencesDataStor
 
 class UserRepository(private val context: Context) {
     private val steamIdKey = stringPreferencesKey("steam_id_64")
+    private val personaNameKey = stringPreferencesKey("persona_name")
 
     val steamIdFlow: Flow<String?> = context.userDataStore.data
         .catch { emit(androidx.datastore.preferences.core.emptyPreferences()) }
         .map { prefs -> prefs[steamIdKey] }
 
-    suspend fun saveSteamId(steamId: String) {
+    val personaNameFlow: Flow<String?> = context.userDataStore.data
+        .catch { emit(androidx.datastore.preferences.core.emptyPreferences()) }
+        .map { prefs -> prefs[personaNameKey] }
+
+    suspend fun saveUserData(steamId: String, personaName: String) {
         runCatching {
             context.userDataStore.edit { prefs ->
                 prefs[steamIdKey] = steamId
+                prefs[personaNameKey] = personaName
             }
         }
     }
 
-    suspend fun clearSteamId() {
+    suspend fun clearUserData() {
         runCatching {
             context.userDataStore.edit { prefs ->
                 prefs.remove(steamIdKey)
+                prefs.remove(personaNameKey)
             }
         }
     }

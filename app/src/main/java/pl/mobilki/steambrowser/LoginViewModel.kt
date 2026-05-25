@@ -10,11 +10,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
 
 sealed interface LoginUiState {
     data object Idle : LoginUiState
     data object Loading : LoginUiState
-    data class Success(val steamId: String) : LoginUiState
+    data class Success(val steamId: String, val personaName: String) : LoginUiState
     data class Error(val message: String) : LoginUiState
 }
 
@@ -29,9 +33,12 @@ class LoginViewModel(
     val savedSteamId: StateFlow<String?> = userRepository.steamIdFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    val savedPersonaName: StateFlow<String?> = userRepository.personaNameFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     fun buildLoginUrl(): String {
-        val returnTo = "steambrowser://login"
-        val realm = "steambrowser://"
+        val returnTo = "https://steambrowser.mobilki.pl/login"
+        val realm = "https://steambrowser.mobilki.pl"
         return Uri.parse("https://steamcommunity.com/openid/login")
             .buildUpon()
             .appendQueryParameter("openid.ns", "http://specs.openid.net/auth/2.0")
@@ -64,10 +71,17 @@ class LoginViewModel(
                 if (!isValid) {
                     throw IllegalStateException("Weryfikacja OpenID nie powiodła się.")
                 }
-                userRepository.saveSteamId(steamId)
-                steamId
-            }.onSuccess { steamId ->
-                _uiState.value = LoginUiState.Success(steamId)
+
+                val playerResponse = steamApiService.getPlayerSummaries(BuildConfig.STEAM_API_KEY, steamId)
+                val responseObj = playerResponse["response"]?.jsonObject
+                val players = responseObj?.get("players") as? JsonArray
+                val firstPlayer = players?.firstOrNull()?.jsonObject
+                val personaName = (firstPlayer?.get("personaname") as? JsonPrimitive)?.content ?: "Użytkownik Steam"
+
+                userRepository.saveUserData(steamId, personaName)
+                steamId to personaName
+            }.onSuccess { (steamId, personaName) ->
+                _uiState.value = LoginUiState.Success(steamId, personaName)
             }.onFailure { error ->
                 _uiState.value = LoginUiState.Error(
                     error.message ?: "Nieznany błąd logowania."
@@ -78,7 +92,7 @@ class LoginViewModel(
 
     fun logout() {
         viewModelScope.launch {
-            userRepository.clearSteamId()
+            userRepository.clearUserData()
             _uiState.value = LoginUiState.Idle
         }
     }

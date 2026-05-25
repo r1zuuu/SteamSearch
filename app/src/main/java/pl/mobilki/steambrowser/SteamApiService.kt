@@ -22,6 +22,7 @@ interface SteamApiService {
     suspend fun getSteamReviews(appId: Int, filter: String, num: Int): JsonObject
     suspend fun getGameFullDetails(appId: Int): JsonObject
     suspend fun verifyOpenIdResponse(responseUrl: String): Boolean
+    suspend fun getPlayerSummaries(apiKey: String, steamIds: String): JsonObject
 }
 
 class DefaultSteamApiService(
@@ -140,6 +141,16 @@ class DefaultSteamApiService(
                 response.isSuccessful && body.contains("is_valid:true")
             }
         }.getOrDefault(false)
+    }
+
+    override suspend fun getPlayerSummaries(apiKey: String, steamIds: String): JsonObject {
+        val url = "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/"
+            .toHttpUrl()
+            .newBuilder()
+            .addQueryParameter("key", apiKey)
+            .addQueryParameter("steamids", steamIds)
+            .build()
+        return getJson(url.toString())
     }
 
     private suspend fun getJson(url: String): JsonObject = withContext(Dispatchers.IO) {

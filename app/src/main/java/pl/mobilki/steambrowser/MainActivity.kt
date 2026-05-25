@@ -62,7 +62,9 @@ class MainActivity : ComponentActivity() {
     private fun handleLoginIntent(intent: Intent?) {
         runCatching {
             val data = intent?.data ?: return
-            if (data.scheme == "steambrowser" && data.host == "login") {
+            if ((data.scheme == "https" && data.host == "steambrowser.mobilki.pl") ||
+                (data.scheme == "steambrowser" && data.host == "login")
+            ) {
                 loginViewModel.verifySteamLogin(data.toString())
             }
         }
