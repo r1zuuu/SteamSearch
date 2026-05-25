@@ -50,9 +50,11 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocalOffer
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material3.Button
@@ -104,6 +106,7 @@ import pl.mobilki.steambrowser.GameMetadata
 import pl.mobilki.steambrowser.GameSummary
 import pl.mobilki.steambrowser.GamesUiState
 import pl.mobilki.steambrowser.GamesViewModel
+import pl.mobilki.steambrowser.LoginViewModel
 import pl.mobilki.steambrowser.R
 import pl.mobilki.steambrowser.ReviewViewModel
 import pl.mobilki.steambrowser.SortOrder
@@ -117,12 +120,18 @@ enum class AppTab(
 ) {
     HOME("Home", Icons.Filled.Home, Icons.Outlined.Home),
     SEARCH("Wyszukaj", Icons.Filled.Search, Icons.Outlined.Search),
-    DEALS("Promocje", Icons.Filled.LocalOffer, Icons.Outlined.LocalOffer)
+    DEALS("Promocje", Icons.Filled.LocalOffer, Icons.Outlined.LocalOffer),
+    PROFILE("Profil", Icons.Filled.Person, Icons.Outlined.Person)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SteamBrowserApp(viewModel: GamesViewModel, dealsViewModel: DealsViewModel, reviewViewModel: ReviewViewModel) {
+fun SteamBrowserApp(
+    viewModel: GamesViewModel,
+    dealsViewModel: DealsViewModel,
+    reviewViewModel: ReviewViewModel,
+    loginViewModel: LoginViewModel
+) {
     val uiState by viewModel.uiState.collectAsState()
     val gameMetadata by viewModel.gameMetadata.collectAsState()
     var currentTab by remember { mutableStateOf(AppTab.HOME) }
@@ -217,6 +226,7 @@ fun SteamBrowserApp(viewModel: GamesViewModel, dealsViewModel: DealsViewModel, r
                                         viewModel.selectGameFromDeals(appId, name)
                                     }
                                 )
+                                AppTab.PROFILE -> LoginScreen(viewModel = loginViewModel)
                             }
                         }
                     }

@@ -1,10 +1,12 @@
 package pl.mobilki.steambrowser
 
+import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
+import okhttp3.FormBody
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -19,6 +21,7 @@ interface SteamApiService {
     suspend fun getFeaturedCategories(): JsonObject
     suspend fun getSteamReviews(appId: Int, filter: String, num: Int): JsonObject
     suspend fun getGameFullDetails(appId: Int): JsonObject
+    suspend fun verifyOpenIdResponse(responseUrl: String): Boolean
 }
 
 class DefaultSteamApiService(
@@ -114,6 +117,29 @@ class DefaultSteamApiService(
             .addQueryParameter("num_per_page", num.toString())
             .build()
         return getJson(url.toString())
+    }
+
+    override suspend fun verifyOpenIdResponse(responseUrl: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val uri = Uri.parse(responseUrl)
+            val formBuilder = FormBody.Builder()
+            for (name in uri.queryParameterNames) {
+                val value = if (name == "openid.mode") {
+                    "check_authentication"
+                } else {
+                    uri.getQueryParameter(name).orEmpty()
+                }
+                formBuilder.add(name, value)
+            }
+            val request = Request.Builder()
+                .url("https://steamcommunity.com/openid/login")
+                .post(formBuilder.build())
+                .build()
+            client.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                response.isSuccessful && body.contains("is_valid:true")
+            }
+        }.getOrDefault(false)
     }
 
     private suspend fun getJson(url: String): JsonObject = withContext(Dispatchers.IO) {

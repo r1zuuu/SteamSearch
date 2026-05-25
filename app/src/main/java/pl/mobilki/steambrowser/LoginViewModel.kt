@@ -1,0 +1,101 @@
+package pl.mobilki.steambrowser
+
+import android.net.Uri
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+sealed interface LoginUiState {
+    data object Idle : LoginUiState
+    data object Loading : LoginUiState
+    data class Success(val steamId: String) : LoginUiState
+    data class Error(val message: String) : LoginUiState
+}
+
+class LoginViewModel(
+    private val userRepository: UserRepository,
+    private val steamApiService: SteamApiService
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
+    val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+
+    val savedSteamId: StateFlow<String?> = userRepository.steamIdFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun buildLoginUrl(): String {
+        val returnTo = "steambrowser://login"
+        val realm = "steambrowser://"
+        return Uri.parse("https://steamcommunity.com/openid/login")
+            .buildUpon()
+            .appendQueryParameter("openid.ns", "http://specs.openid.net/auth/2.0")
+            .appendQueryParameter("openid.mode", "checkid_setup")
+            .appendQueryParameter("openid.return_to", returnTo)
+            .appendQueryParameter("openid.realm", realm)
+            .appendQueryParameter(
+                "openid.identity",
+                "http://specs.openid.net/auth/2.0/identifier_select"
+            )
+            .appendQueryParameter(
+                "openid.claimed_id",
+                "http://specs.openid.net/auth/2.0/identifier_select"
+            )
+            .build()
+            .toString()
+    }
+
+    fun verifySteamLogin(uriString: String) {
+        _uiState.value = LoginUiState.Loading
+        viewModelScope.launch {
+            runCatching {
+                val claimedId = Uri.parse(uriString).getQueryParameter("openid.claimed_id")
+                    ?: throw IllegalArgumentException("Brak openid.claimed_id w odpowiedzi.")
+                val steamId = claimedId.substringAfterLast('/')
+                if (steamId.isBlank() || steamId.any { !it.isDigit() }) {
+                    throw IllegalArgumentException("Nieprawidłowy SteamID64.")
+                }
+                val isValid = steamApiService.verifyOpenIdResponse(uriString)
+                if (!isValid) {
+                    throw IllegalStateException("Weryfikacja OpenID nie powiodła się.")
+                }
+                userRepository.saveSteamId(steamId)
+                steamId
+            }.onSuccess { steamId ->
+                _uiState.value = LoginUiState.Success(steamId)
+            }.onFailure { error ->
+                _uiState.value = LoginUiState.Error(
+                    error.message ?: "Nieznany błąd logowania."
+                )
+            }
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            userRepository.clearSteamId()
+            _uiState.value = LoginUiState.Idle
+        }
+    }
+
+    fun resetState() {
+        _uiState.value = LoginUiState.Idle
+    }
+
+    companion object {
+        fun factory(
+            userRepository: UserRepository,
+            steamApiService: SteamApiService
+        ): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return LoginViewModel(userRepository, steamApiService) as T
+            }
+        }
+    }
+}
